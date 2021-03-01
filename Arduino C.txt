@@ -1,0 +1,260 @@
+[code]
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+#include <stDHT.h>
+
+#define DHT1PIN 8		//пин для DHT22
+#define DHT2PIN 7 		//пин для DHT22
+#define DHT3PIN 6 		//пин для DHT22
+
+LiquidCrystal_I2C Rex(0x27,16,4);	//I2C адрес для дисплея, называем его Rex
+
+DHT sens1(DHT22);		//указываем, что у нас датчики DHT22
+DHT sens2(DHT22);
+DHT sens3(DHT22);
+
+byte gradus[8] = { 		//создаем значок градуса
+  B01110,
+  B01010,
+  B01110,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000
+};
+
+boolean knop_flag = 0; //последнее состояние кнопки
+boolean knop; //текущее значение кнопки
+boolean p = 0; //состояние светодиода
+
+int Hum1[10], h1, SUM11; //массив для влажности с 1-го датчика
+int humid1;
+int Hum2[10], h2, SUM12; //массив для влажности со 2-го датчика
+int humid2;
+int Hum3[10], h3, SUM13; //массив для влажности с 3-го датчика
+int humid3;
+
+int Temp1[10], t1, SUM21; //массив для температуры с 1-го датчика
+int temper1;
+int Temp2[10], t2, SUM22; //массив для температуры со 2-го датчика
+int temper2;
+int Temp3[10], t3, SUM23; //массив для температуры с 3-го датчика
+int temper3;
+
+int D1[10], d1, SUM31; //массив для CO с 1-го датчика
+int dm1;
+int D2[10], d2, SUM32; //массив для CO со 2-го датчика
+int dm2;
+int D3[10], d3, SUM33; //массив для CO с 3-го датчика
+int dm3;
+
+void setup() {
+  pinMode(9, OUTPUT);
+  Rex.init();
+  Rex.backlight();
+  Serial.begin(9600);
+  pinMode(10, INPUT_PULLUP);
+  pinMode(13, OUTPUT);
+  pinMode(8, INPUT);
+  pinMode(8, HIGH);
+  pinMode(7, INPUT);
+  pinMode(7, HIGH);
+  pinMode(6, INPUT);
+  pinMode(6, HIGH);
+  pinMode(A0, INPUT);
+  pinMode(A1, INPUT);
+  pinMode(A2, INPUT);
+  }
+
+void loop() { 
+  Rex.createChar(1, gradus); //создаем символ градуса
+
+  //для реализации метода скользящей средней будем создавать массивы для показаний с датчиков,
+  //которые регулярно обновляются и перезаписываются,
+  //и для этих чисел ищем среднее арифметическое
+  
+  Hum1[h1] = sens1.readHumidity(6);	//записываем в массив h1
+  h1++;                           		//прибавляем h1
+  if (h1 > 9) h1 = 0;               		//если больше 9, сбрасывем h1
+  SUM11 = 0;                      		//обнуление суммы
+  for (byte i = 0; i < 10; i++) {   		//для каждого элемента
+    SUM11 += Hum1[i];               	//складываем все элементы
+  }
+  humid1 = SUM11 / 10;              	//среднее арифметическое
+  
+  //для остальных массивов действия аналогичны
+
+  Hum2[h2] = sens2.readHumidity(7);
+  h2++;
+  if (h2 > 9) h2 = 0;
+  SUM12 = 0;
+  for (byte i = 0; i < 10; i++) {
+    SUM12 += Hum2[i];
+  }
+  humid2 = SUM12 / 10;
+
+  Hum3[h3] = sens3.readHumidity(8);
+  h3++;
+  if (h3 > 9) h3 = 0;
+  SUM13 = 0;
+  for (byte i = 0; i < 10; i++) {
+    SUM13 += Hum3[i];
+  }
+  humid3 = SUM13 / 10;
+  
+  Temp1[t1] = sens1.readTemperature(6);
+  t1++;
+  if (t1 > 9) t1 = 0;
+  SUM21 = 0;
+  for (byte n = 0; n < 10; n++) {
+    SUM21 += Temp1[n];
+  }
+  temper1 = SUM21 / 10;
+
+  Temp2[t2] = sens2.readTemperature(7);
+  t2++;
+  if (t2 > 9) t2 = 0;
+  SUM22 = 0;
+  for (byte i = 0; i < 10; i++) {
+    SUM22 += Temp2[i];
+  }
+  temper2 = SUM22 / 10;
+
+  Temp3[t3] = sens3.readTemperature(8);
+  t3++;
+  if (t3 > 9) t3 = 0;
+  SUM23 = 0;
+  for (byte i = 0; i < 10; i++) {
+    SUM23 += Temp3[i];
+  }
+  temper3 = SUM23 / 10;
+
+  D1[d1] = analogRead(A0);
+  d1++;
+  if (d1 > 9) d1 = 0;
+  SUM31 = 0;
+  for (byte i = 0; i < 10; i++) {
+    SUM31 += D1[i];
+  }
+  dm1 = SUM31 / 10;
+
+  D2[d2] = analogRead(A1);
+  d2++;
+  if (d2 > 9) d2 = 0;
+  SUM32 = 0;
+  for (byte i = 0; i < 10; i++) {
+    SUM32 += D2[i];
+  }
+  dm2 = SUM32 / 10;
+
+  D3[d3] = analogRead(A2);
+  d3++;
+  if (d3 > 9) d3 = 0;
+  SUM33 = 0;
+  for (byte i = 0; i < 10; i++) {
+    SUM33 += D3[i];
+  }
+  dm3 = SUM33 / 10;
+
+delay(200);
+
+ //выводим на экран обработанные показания датчиков
+ //в левом столбце - влажность
+ //в правом - температура
+ 
+  Rex.setCursor(0,0); 
+  Rex.print("H1:");
+  Rex.print(humid1);
+  Rex.print("%");
+  
+  Rex.setCursor(0,1);
+  Rex.print("H2:");
+  Rex.print(humid2);
+  Rex.print("%");
+  
+  Rex.setCursor(-4,2);	//на этой строке для симметрии координата по x меняется
+                       		//к сожалению не знаю как это объяснить
+  Rex.print("H3:");
+  Rex.print(humid3);
+  Rex.print("%");
+      
+  Rex.setCursor(9,0);
+  Rex.print("T1:");
+  Rex.print(temper1);
+  Rex.write(byte(1));
+  Rex.print("C");
+  
+  Rex.setCursor(9,1);
+  Rex.print("T2:");
+  Rex.print(temper2);
+  Rex.write(byte(1));
+  Rex.print("C");
+  
+  Rex.setCursor(5,2); //ситуация со строкой аналогична (-4,2)
+  Rex.print("T3:");
+  Rex.print(temper3);
+  Rex.write(byte(1));
+  Rex.print("C");    
+  delay(10); 
+
+  //в serial выводим данные с датчиков через пробел (для корректного отображения графиков)
+  
+  Serial.println(" "); 
+  Serial.print(humid1);
+  Serial.print(" ");
+  Serial.print(humid2);
+  Serial.print(" ");
+  Serial.print(humid3);
+  Serial.print(" ");
+  Serial.print(temper1);
+  Serial.print(" ");
+  Serial.print(temper2);
+  Serial.print(" ");
+  Serial.print(temper3); 
+  Serial.print(" ");
+  Serial.print(dm1);
+  Serial.print(" ");
+  Serial.print(dm2);
+  Serial.print(" ");
+  Serial.println(dm3);
+  
+    //пишем условие, что если показания выходят за пределы нормы,
+    //то включаем сигнализацию, при возвращении в норму - отключаем
+    
+if ((humid1>50 || humid2>50 || humid3>50 || temper1<10 || temper2<10 || temper3<10 || t1>30 || t2>30 || t3>30 || dm1>200 || dm2>200 || dm3>200)) {
+   tone(9, 1); 
+   }
+  else {
+    noTone(9);
+  }
+
+  knop = !digitalRead(10);           	 //считываем и инвертируем сигнал с кнопки, так как используем INPUT_PULLUP
+  if (knop == 1 && knop_flag ==0) {  	 //если кнопка нажата и если кнопка не была нажата
+    knop_flag = 1;                   		 //поднимаем флаг (таким образом код повторяется только один раз при нажатии кнопки)
+    p = !p;                          		 //инверсия сигнала на светодиод
+    digitalWrite(13, p);             		 //подача нового сигнала на светодиод
+    delay(20);                     		 //защита от дребезга и время, чтобы убрать палец
+  }
+  
+if (knop == 0 && knop_flag == 1) {   	 //если кнопка отпущена и флаг равен единице, т.е. кнопку только что нажали и отпустили
+  knop_flag = 0;                     		 //опускаем флаг
+}
+
+if(digitalRead(13) == 1) {            	//если светодиод горит
+  noTone(9);                         		//отключаем пьезо
+}
+
+    //пишем условие, что если показания выходят за пределы нормы,
+    //то выводим сообщение об аварии, при возвращении в норму - чистим экран
+    
+if (humid1>50 || humid2>50 || humid3>50 || temper1>30 || temper2>30 || temper3>30 || temper1<10 || temper2<10 || temper3<10 || dm1>200 || dm2>200 || dm3>200) {
+  Rex.setCursor(0, 3);
+  Rex.print("avariya");
+}
+else {
+  Rex.setCursor(0, 3);
+  Rex.print("              ");
+} 
+}
+[/code]
